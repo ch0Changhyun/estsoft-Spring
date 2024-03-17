@@ -1,9 +1,12 @@
 package com.estsoft.blogjpa.service;
 
 import com.estsoft.blogjpa.dto.AddArticleRequest;
+import com.estsoft.blogjpa.dto.CommentRequest;
 import com.estsoft.blogjpa.external.ExampleAPIClient;
 import com.estsoft.blogjpa.model.Article;
+import com.estsoft.blogjpa.model.Comment;
 import com.estsoft.blogjpa.repository.BlogRepository;
+import com.estsoft.blogjpa.repository.CommentRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +21,7 @@ import java.util.List;
 @Service
 public class BlogService {
     private final BlogRepository blogRepository;
+    private CommentRepository commentRepository;
     private final ExampleAPIClient apiClient;
 
     public BlogService(BlogRepository blogRepository, ExampleAPIClient apiClient) {
@@ -44,10 +48,8 @@ public class BlogService {
 
     @Transactional
     public Article update(Long id, AddArticleRequest request) {
-        // begin transaction
         Article article = findById(id);
         article.update(request.getTitle(), request.getContent());
-        // commit / rollback
         return article;
     }
 
@@ -79,5 +81,25 @@ public class BlogService {
         return jsonMapList.stream()
                 .map(hashMap -> new Article(hashMap.get("title"), hashMap.get("body")))
                 .toList();
+    }
+    public Comment saveComment(Long articleId, CommentRequest commentRequest){
+        Article article = blogRepository.findById(articleId).orElseThrow(() -> new IllegalArgumentException("not found article " + articleId));
+
+        Comment comment = Comment.builder()
+                .article(article)
+                .body(commentRequest.getBody())
+                .build();
+
+        return commentRepository.save(comment);
+    }
+
+    public Comment findComment(Long articleId, Long commentId) {
+        Comment comment = commentRepository.findById(commentId).orElseThrow(() -> new IllegalArgumentException("not found comment" +commentId));
+
+        if(comment.getArticle().getId().equals(articleId)) {
+            throw new IllegalArgumentException("articleId : " + articleId + " doesn't match to commentId : " + commentId);
+        }
+
+        return comment;
     }
 }
